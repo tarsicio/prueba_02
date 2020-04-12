@@ -1,0 +1,62 @@
+CREATE DEFINER=`develop2018`@`%` TRIGGER `insertAmxImplementBefore` BEFORE INSERT ON `files_drive_amx_implement` FOR EACH ROW BEGIN
+	declare VticketId int;
+	declare Vurl VARCHAR(255);
+	declare VfechaDrive datetime;
+	declare VidSitio int;
+	declare VidProyecto int;
+	declare VidProceso int;
+	declare VidEntregable int;
+    declare Vasp VARCHAR(255);
+    declare Vrowid VARCHAR(100);
+    declare Vpais VARCHAR(100);
+    declare Vcliente VARCHAR(255);
+    declare Vproyecto VARCHAR(255);
+
+	set Vurl = new.URL;
+	set VfechaDrive = new.fechaDrive;
+	set VidProyecto = new.idproyectos;
+	set VidProceso = new.idproceso;
+	set VidEntregable = new.identregable;
+    set Vasp = new.asp;
+    set Vrowid = new.RowId;
+    set Vpais = new.pais;
+    set Vcliente = new.cliente;
+    set Vproyecto = new.proyecto;
+
+       
+        IF (new.asp is null OR new.asp = "") THEN
+            set Vasp = 'N/A';
+        ELSE
+            set Vasp = new.asp;
+        END IF;
+        
+
+	set VidSitio = SH.getIdSitio(VidProyecto, new.id);
+	if (VidSitio is null) then
+		call dbsitio.createSite2(VidProyecto, 88, new.nombre, new.id, 344, 827, 18);
+		set VidSitio = SH.getIdSitio(VidProyecto ,new.id);
+	end if;
+    
+	set VticketId = SH.getIdticketByCodigoSite(VidProyecto, VidProceso, new.id);
+	if (VticketId is null) then
+		call dbtt.createTicketWithImplement(VidProyecto,VidProceso,496,"",
+                                                    VidSitio, VfechaDrive,now(),0, Vasp, Vrowid,
+                                                    Vpais, Vcliente, Vproyecto );
+		set VticketId = SH.getIdticketByCodigoSite(VidProyecto, VidProceso, new.id);
+	end if;
+
+	set  new.idticket = VticketId;
+	IF (!dbtt.exist_entregable(VticketId, VidEntregable  )) THEN
+		call dbtt.insert_entregable(VticketId,VidEntregable,VfechaDrive );
+	END IF;
+
+	IF(!dbtt.exist_entregable_hecho(VticketId,VidEntregable  )) then
+		call dbtt.update_entregable_millicom(VticketId ,VidEntregable,VfechaDrive,Vurl,Vrowid);
+        ELSE
+             call dbtt.update_entregable_millicom_implement(VticketId ,VidEntregable,VfechaDrive,Vurl,Vrowid);
+	END IF;
+        
+         call dbtt.update_asp_name(VticketId,Vasp);
+
+
+END
